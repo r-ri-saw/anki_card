@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#4f8ef7">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="暗記カード">
+  <meta name="description" content="中学生向けスペースドリピティション暗記カードアプリ">
+  <title>暗記カード</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="images/icon-192.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="images/icon-192.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ======================================================
+     データなし画面（初回 or 取得失敗）
+     ====================================================== -->
+<div id="screen-nodata" class="screen active">
+  <div class="page-scroll" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;text-align:center">
+    <div style="font-size:64px">📭</div>
+    <div style="font-size:20px;font-weight:800">問題データがありません</div>
+    <div id="nodata-message" style="font-size:14px;color:var(--text-sub);line-height:1.7;white-space:pre-line"></div>
+    <button class="btn btn-primary btn-lg" id="btn-retry">🔄 再試行</button>
+  </div>
+</div>
+
+<!-- ======================================================
+     ホーム画面
+     ====================================================== -->
+<div id="screen-home" class="screen">
+  <div class="app-header">
+    <div class="header-title">📚 暗記カード</div>
+    <span class="due-badge" id="home-due-badge" style="display:none"></span>
+  </div>
+  <div class="page-scroll">
+    <div class="section-title">科目</div>
+    <div id="subject-cards"></div>
+    <button class="home-update-btn" onclick="updateData()">
+      🔄 問題データを更新する
+    </button>
+  </div>
+</div>
+
+<!-- ======================================================
+     科目メニュー画面
+     ====================================================== -->
+<div id="screen-subject" class="screen">
+  <div class="app-header">
+    <button class="header-back" onclick="goHome()">◀</button>
+    <div class="header-title" id="subj-title"></div>
+  </div>
+  <div class="page-scroll">
+
+    <div class="prog-row">
+      <div class="prog-bar-bg">
+        <div class="prog-bar-fill" id="sm-bar" style="width:0%"></div>
+      </div>
+      <div class="prog-pct" id="sm-pct">0%</div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-box">
+        <div class="stat-val" id="sm-total">0</div>
+        <div class="stat-lbl">総問題</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="sm-new" style="color:var(--accent)">0</div>
+        <div class="stat-lbl">🆕 新規</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="sm-today" style="color:var(--wrong)">0</div>
+        <div class="stat-lbl">📅 今日</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="sm-learned" style="color:var(--almost)">0</div>
+        <div class="stat-lbl">📚 学習済</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="sm-master" style="color:var(--good)">0</div>
+        <div class="stat-lbl">⭐ マスター</div>
+      </div>
+    </div>
+
+    <div class="section-title">学習モード</div>
+    <div class="mode-grid">
+      <button class="mode-btn today" onclick="startStudy('today')">
+        <span class="mode-icon">📅</span>
+        <span>今日の復習</span>
+        <span class="mode-sub">期限が来たカード</span>
+      </button>
+      <button class="mode-btn all" onclick="startStudy('all')">
+        <span class="mode-icon">📋</span>
+        <span>全問題</span>
+        <span class="mode-sub">ランダム出題</span>
+      </button>
+      <button class="mode-btn weak" onclick="startStudy('weak')">
+        <span class="mode-icon">💪</span>
+        <span>苦手問題</span>
+        <span class="mode-sub">定着度が低い順</span>
+      </button>
+      <button class="mode-btn random" onclick="startStudy('random')">
+        <span class="mode-icon">🎲</span>
+        <span>ランダム</span>
+        <span class="mode-sub">フィルタ対象から</span>
+      </button>
+    </div>
+
+    <div class="section-title" style="margin-top:20px">単元フィルター</div>
+    <div class="unit-header">
+      <span style="font-size:12px;color:var(--text-sub)">学習したい単元を選択</span>
+      <div class="unit-actions">
+        <button class="unit-action-btn" onclick="selectAllUnits()">全選択</button>
+        <button class="unit-action-btn" onclick="clearAllUnits()">解除</button>
+      </div>
+    </div>
+    <div id="unit-list"></div>
+
+    <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
+      <button class="btn btn-danger btn-full" onclick="resetSubjectData()">
+        🗑 この科目の学習データをリセット
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================
+     学習画面
+     ====================================================== -->
+<div id="screen-study" class="screen">
+  <div class="app-header">
+    <button class="header-back" onclick="goSubject()">◀</button>
+    <div class="header-title" id="study-mode-label"></div>
+  </div>
+  <div class="page-scroll">
+    <div class="study-prog-row">
+      <div class="study-prog-bar">
+        <div class="study-prog-fill" id="study-prog-fill" style="width:0%"></div>
+      </div>
+      <div class="study-prog-txt" id="study-prog-txt">0 / 0</div>
+    </div>
+
+    <div class="question-card">
+      <div class="card-unit" id="card-unit"></div>
+      <div class="card-q"    id="card-q"></div>
+
+      <button class="btn-show-answer" id="btn-show-answer" onclick="showAnswer()">
+        答えを見る 👀
+      </button>
+
+      <div class="answer-section hidden" id="answer-section">
+        <div class="ans-box">
+          <div class="ans-lbl">✅ 答え</div>
+          <div class="ans-txt" id="card-a"></div>
+        </div>
+        <div class="write-hint">📝 紙に書いて確認したら下のボタンを押してね！</div>
+        <div class="judge-label">どうだった？</div>
+        <div class="judge-btns">
+          <button class="judge-btn wrong"  onclick="judge(0)">
+            <span class="j-icon">😣</span>
+            <span class="j-text">わからない</span>
+            <span class="j-sub">もう一度</span>
+          </button>
+          <button class="judge-btn almost" onclick="judge(1)">
+            <span class="j-icon">🤔</span>
+            <span class="j-text">もう少し</span>
+            <span class="j-sub">明日</span>
+          </button>
+          <button class="judge-btn good"   onclick="judge(2)">
+            <span class="j-icon">😄</span>
+            <span class="j-text">覚えた！</span>
+            <span class="j-sub">数日後</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================
+     完了画面
+     ====================================================== -->
+<div id="screen-finish" class="screen">
+  <div class="app-header">
+    <div class="header-title" style="text-align:center;width:100%">セッション完了 🎊</div>
+  </div>
+  <div class="page-scroll">
+    <div class="fin-emoji" id="fin-emoji">🎉</div>
+    <div class="fin-title" id="fin-title"></div>
+    <div class="fin-pct-ring" id="fin-pct"></div>
+
+    <div class="fin-stats">
+      <div class="fin-row">
+        <span class="fin-row-lbl">解いた問題数</span>
+        <span class="fin-row-val" id="f-done"></span>
+      </div>
+      <div class="fin-row">
+        <span class="fin-row-lbl" style="color:var(--good)">😄 覚えた</span>
+        <span class="fin-row-val" style="color:var(--good)"   id="f-good"></span>
+      </div>
+      <div class="fin-row">
+        <span class="fin-row-lbl" style="color:var(--almost)">🤔 もう少し</span>
+        <span class="fin-row-val" style="color:var(--almost)" id="f-almost"></span>
+      </div>
+      <div class="fin-row">
+        <span class="fin-row-lbl" style="color:var(--wrong)">😣 わからない</span>
+        <span class="fin-row-val" style="color:var(--wrong)"  id="f-wrong"></span>
+      </div>
+    </div>
+
+    <div class="fin-btns">
+      <button class="btn btn-primary btn-lg btn-full" onclick="goSubject()">メニューに戻る</button>
+      <button class="btn btn-ghost btn-full"           onclick="goHome()">ホームに戻る</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================
+     共通 UI
+     ====================================================== -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-msg" id="loading-msg">読み込み中…</div>
+</div>
+
+<div class="toast" id="toast" role="alert" aria-live="polite"></div>
+
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal-box">
+    <div class="cm-title"></div>
+    <div class="cm-message"></div>
+    <div class="cm-btns">
+      <button class="cm-ok"></button>
+      <button class="cm-cancel"></button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================
+     スクリプト
+     ====================================================== -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="js/db.js"></script>
+<script src="js/loader.js"></script>
+<script src="js/sm2.js"></script>
+<script src="js/session.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>

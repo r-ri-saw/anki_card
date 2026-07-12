@@ -1,0 +1,27 @@
+{
+  "name": "暗記カード",
+  "short_name": "暗記カード",
+  "description": "スペースドリピティション対応の暗記カードアプリ",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#4f8ef7",
+  "background_color": "#f0f4ff",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "utilities"],
+  "screenshots": []
+}
