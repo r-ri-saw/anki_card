@@ -9,7 +9,7 @@
  * ※ CACHE_SHELL のバージョン番号を上げると古いキャッシュが自動削除される
  */
 
-const CACHE_SHELL = 'anki-shell-v3';   // ← アプリ更新時はここを変更
+const CACHE_SHELL = 'anki-shell-v4';   // ← アプリ更新時はここを変更
 const CACHE_CDN   = 'anki-cdn-v1';
 const CACHE_DATA  = 'anki-data-v1';
 
