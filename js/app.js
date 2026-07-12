@@ -295,6 +295,7 @@ function renderStudyCard() {
   document.getElementById('answer-section').classList.add('hidden');
   document.getElementById('btn-show-answer').classList.remove('hidden');
   document.getElementById('btn-show-answer').disabled = false;
+  document.querySelectorAll('.judge-btn').forEach(b => b.disabled = false);
 }
 
 function showAnswer() {
