@@ -69,6 +69,10 @@ const DB = (() => {
           result[c.subject].push(c);
           cursor.continue();
         } else {
+          // Excelの行順（rowIndex）でソートして返す
+          Object.keys(result).forEach(subj => {
+            result[subj].sort((a, b) => (a.rowIndex ?? 0) - (b.rowIndex ?? 0));
+          });
           resolve(result);
         }
       };

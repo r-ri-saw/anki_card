@@ -17,13 +17,14 @@
 // ============================================================
 const Parser = (() => {
 
-  function rowToCard(row, subject) {
+  function rowToCard(row, subject, rowIndex) {
     const id   = String(row[0] ?? '').trim();
     const unit = String(row[1] ?? '').trim();
     const q    = String(row[2] ?? '').trim();
     const a    = String(row[3] ?? '').trim();
     if (!id || !q || !a) return null;
-    return { id: `${subject}::${id}`, cardId: id, subject, unit: unit || '未分類', q, a };
+    // rowIndex: Excelの行順を保持するために使用（単元フィルターの並び順に影響）
+    return { id: `${subject}::${id}`, cardId: id, subject, unit: unit || '未分類', q, a, rowIndex };
   }
 
   /** ArrayBuffer → { subject: [card,...] } */
@@ -32,7 +33,7 @@ const Parser = (() => {
     const result = {};
     wb.SheetNames.forEach(name => {
       const rows  = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: '' });
-      const cards = rows.slice(1).map(r => rowToCard(r, name)).filter(Boolean);
+      const cards = rows.slice(1).map((r, i) => rowToCard(r, name, i)).filter(Boolean);
       if (cards.length > 0) result[name] = cards;
     });
     return result;
@@ -47,7 +48,7 @@ const Parser = (() => {
     const result = {};
     Object.entries(obj).forEach(([subject, rows]) => {
       const cards = rows
-        .map(r => rowToCard([r.id, r.unit, r.q, r.a], subject))
+        .map((r, i) => rowToCard([r.id, r.unit, r.q, r.a], subject, i))
         .filter(Boolean);
       if (cards.length > 0) result[subject] = cards;
     });
