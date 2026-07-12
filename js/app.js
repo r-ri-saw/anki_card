@@ -226,7 +226,7 @@ function renderUnitList() {
   list.innerHTML = '';
 
   units.forEach(unit => {
-    const short  = unit.includes('：') ? unit.split('：').slice(1).join('：') : unit;
+    const short  = unit;  // エクセルの入力そのままを表示
     const cnt    = _allData[_currentSubj].filter(c => c.unit === unit).length;
     const sel    = _activeUnits.has(unit);
     const li     = document.createElement('label');
