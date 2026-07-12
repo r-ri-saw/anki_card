@@ -6,20 +6,18 @@
 // ============================================================
 // アプリ状態
 // ============================================================
-let _allData     = {};   // { subject: [card,...] }
+let _allData     = {};
 let _currentSubj = null;
 let _activeUnits = new Set();
-let _srMap       = {};   // 現在科目の SR キャッシュ
+let _srMap       = {};
 
 // ============================================================
 // 起動
 // ============================================================
 document.addEventListener('DOMContentLoaded', async () => {
-  // Service Worker 登録
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
-
   bindGlobalEvents();
   await boot();
 });
@@ -29,17 +27,19 @@ async function boot() {
   try {
     await DB.open();
 
-    // ① オンラインなら GitHub から最新を取得・差分更新
+    // リモートから最新を取得（失敗してもアプリは続行）
     const syncResult = await Loader.syncFromRemote();
 
-    // ② DB から問題データをロード
+    // デバッグ: 結果をコンソールに出力
+    console.log('[boot] syncResult:', syncResult);
+
+    // DB から問題データをロード
     _allData = await DB.getAllQuestions();
     const hasData = Object.keys(_allData).length > 0;
 
     UI.hideLoading();
 
     if (!hasData) {
-      // 保存済みデータなし・オフライン or 取得失敗
       showNoDataScreen(syncResult);
       return;
     }
@@ -52,25 +52,36 @@ async function boot() {
     } else if (syncResult.status === 'error') {
       UI.toast('最新データを取得できませんでした。保存済みデータを使用します。', 'warn', 4000);
     }
-    // 'no-change' はトースト不要（静か）
+    // 'no-change' はトースト不要
 
     renderHome();
     UI.show('screen-home');
 
   } catch (e) {
+    console.error('[boot] fatal:', e);
     UI.hideLoading();
-    showNoDataScreen({ status: 'error', message: 'データベースの初期化に失敗しました。' });
+    showNoDataScreen({ status: 'error', message: 'データベースの初期化に失敗しました。\n(' + e.message + ')' });
   }
 }
 
 // データがない場合の画面
 function showNoDataScreen(syncResult) {
-  const msgEl = document.getElementById('nodata-message');
-  if (syncResult.status === 'offline' || syncResult.status === 'error') {
-    msgEl.textContent = '問題データを取得できませんでした。\nネット接続を確認して再度お試しください。';
+  const msgEl  = document.getElementById('nodata-message');
+  const detEl  = document.getElementById('nodata-detail');
+
+  let msg = '';
+  if (syncResult.status === 'offline') {
+    msg = 'オフラインのため問題データを取得できませんでした。\nネット接続を確認して「再試行」を押してください。';
+  } else if (syncResult.status === 'error') {
+    msg = syncResult.message || '問題データを取得できませんでした。';
   } else {
-    msgEl.textContent = '問題データを取得してください。';
+    msg = '問題データがありません。';
   }
+
+  msgEl.textContent = msg;
+  // デバッグ用エラー詳細（グレーで小さく表示）
+  detEl.textContent = syncResult.detail ? '詳細: ' + syncResult.detail : '';
+
   UI.show('screen-nodata');
 }
 
@@ -78,7 +89,6 @@ function showNoDataScreen(syncResult) {
 // グローバルイベント
 // ============================================================
 function bindGlobalEvents() {
-  // 「再試行」ボタン（no-data 画面）
   document.getElementById('btn-retry').addEventListener('click', boot);
 }
 
@@ -133,7 +143,7 @@ async function renderHome() {
   }
 
   const badge = document.getElementById('home-due-badge');
-  badge.textContent  = totalDue > 0 ? totalDue : '';
+  badge.textContent   = totalDue > 0 ? totalDue : '';
   badge.style.display = totalDue > 0 ? 'inline-flex' : 'none';
 }
 
@@ -154,6 +164,8 @@ async function updateData() {
   await DB.setMeta('dataEtag', null);
 
   const result = await Loader.syncFromRemote();
+  console.log('[updateData] result:', result);
+
   _allData = await DB.getAllQuestions();
   UI.hideLoading();
 
@@ -164,7 +176,7 @@ async function updateData() {
   } else if (result.status === 'offline') {
     UI.toast('オフラインのため更新できませんでした', 'warn');
   } else {
-    UI.toast('最新データを取得できませんでした。保存済みデータを使用します。', 'warn', 4000);
+    UI.toast((result.message || '更新に失敗しました') + (result.detail ? '\n' + result.detail : ''), 'warn', 5000);
   }
 }
 
@@ -198,7 +210,6 @@ async function openSubject(subj) {
   UI.show('screen-subject');
 }
 
-// ── 単元リスト ────────────────────────────────────────────
 function getUnits() {
   if (!_currentSubj || !_allData[_currentSubj]) return [];
   return [...new Set(_allData[_currentSubj].map(c => c.unit))];
@@ -275,9 +286,9 @@ function renderStudyCard() {
   const done  = Session.doneCount();
   const pct   = Session.progress() * 100;
 
-  document.getElementById('card-unit').textContent  = card.unit;
-  document.getElementById('card-q').textContent     = card.q;
-  document.getElementById('card-a').textContent     = card.a;
+  document.getElementById('card-unit').textContent       = card.unit;
+  document.getElementById('card-q').textContent          = card.q;
+  document.getElementById('card-a').textContent          = card.a;
   document.getElementById('study-prog-txt').textContent  = `${done + 1} / ${total}`;
   document.getElementById('study-prog-fill').style.width = pct + '%';
 

@@ -4,17 +4,16 @@
  * 【設計方針】
  *   DataSource インターフェースを介してデータを取得する。
  *   現在の実装: GitHub Pages 上の Excel ファイルを fetch
- *   将来の切り替え例:
+ *
+ *   将来 JSON に切り替える場合:
  *     DataSource.current = DataSource.json('data/cards.json');
  *
  * 【列構成】A:ID  B:単元  C:問題  D:答え  （1行目はヘッダー）
  * 【シート名】= 科目名
- *
- * 返り値: { "理科": [{id,cardId,subject,unit,q,a}, ...], ... }
  */
 
 // ============================================================
-// パーサー（フォーマット非依存）
+// Parser  ─  バイナリ/テキスト → カードオブジェクト変換
 // ============================================================
 const Parser = (() => {
 
@@ -39,9 +38,10 @@ const Parser = (() => {
     return result;
   }
 
-  /** JSON 形式（将来用）
-   *  期待する形式:
-   *  { "理科": [ {"id":"s1","unit":"生命","q":"...","a":"..."}, ... ], ... }
+  /**
+   * JSON 形式（将来用）
+   * 期待する形式:
+   * { "理科": [ {"id":"s1","unit":"生命","q":"...","a":"..."}, ... ], ... }
    */
   function json(obj) {
     const result = {};
@@ -64,23 +64,40 @@ const DataSource = (() => {
 
   /**
    * Excel ソース（現在の実装）
-   * @param {string} url  fetch する URL
+   * @param {string} url  fetch する URL（ASCII のみ推奨）
    */
   function excel(url) {
     return {
       type: 'excel',
       url,
-      /** @returns {Promise<{data:Object, etag:string|null, size:number}>} */
       async fetch() {
-        const res = await globalThis.fetch(url, { cache: 'no-cache' });
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${url}`);
-        const buf  = await res.arrayBuffer();
-        const etag = res.headers.get('ETag') || res.headers.get('Last-Modified') || null;
-        return {
-          data:  Parser.xlsx(buf),
-          etag:  etag || String(buf.byteLength),   // ETag がなければサイズで代替
-          size:  buf.byteLength,
-        };
+        // タイムアウト 15 秒
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 15000);
+        try {
+          const res = await globalThis.fetch(url, {
+            cache: 'no-cache',
+            signal: controller.signal,
+          });
+          clearTimeout(timer);
+
+          if (!res.ok) throw new Error(`HTTP ${res.status} (${res.statusText}): ${url}`);
+
+          const buf  = await res.arrayBuffer();
+          if (buf.byteLength === 0) throw new Error('ファイルが空です: ' + url);
+
+          // ETag → Last-Modified → ファイルサイズ の順で変更識別子を取得
+          const etag = res.headers.get('ETag')
+                    || res.headers.get('Last-Modified')
+                    || String(buf.byteLength);
+
+          return { data: Parser.xlsx(buf), etag, size: buf.byteLength };
+
+        } catch (err) {
+          clearTimeout(timer);
+          if (err.name === 'AbortError') throw new Error('タイムアウト: ' + url);
+          throw err;
+        }
       },
     };
   }
@@ -88,29 +105,39 @@ const DataSource = (() => {
   /**
    * JSON ソース（将来用）
    * cards.json に切り替える場合はここを差し替えるだけ
-   * @param {string} url
    */
   function json(url) {
     return {
       type: 'json',
       url,
       async fetch() {
-        const res = await globalThis.fetch(url, { cache: 'no-cache' });
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${url}`);
-        const obj  = await res.json();
-        const etag = res.headers.get('ETag') || res.headers.get('Last-Modified') || null;
-        return {
-          data:  Parser.json(obj),
-          etag:  etag || JSON.stringify(obj).length.toString(),
-          size:  0,
-        };
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 15000);
+        try {
+          const res = await globalThis.fetch(url, {
+            cache: 'no-cache',
+            signal: controller.signal,
+          });
+          clearTimeout(timer);
+          if (!res.ok) throw new Error(`HTTP ${res.status}: ${url}`);
+          const obj  = await res.json();
+          const etag = res.headers.get('ETag')
+                    || res.headers.get('Last-Modified')
+                    || JSON.stringify(obj).length.toString();
+          return { data: Parser.json(obj), etag, size: 0 };
+        } catch (err) {
+          clearTimeout(timer);
+          if (err.name === 'AbortError') throw new Error('タイムアウト: ' + url);
+          throw err;
+        }
       },
     };
   }
 
   // ★ 現在使用するデータソースをここで指定 ★
+  // ファイル名は ASCII のみ（日本語ファイル名は fetch で失敗することがある）
   // 将来 JSON に切り替える場合: current = json('data/cards.json');
-  const current = excel('data/暗記カード.xlsx');
+  const current = excel('data/cards.xlsx');
 
   return { excel, json, current };
 })();
@@ -121,50 +148,71 @@ const DataSource = (() => {
 const Loader = (() => {
 
   /**
-   * GitHub 上のデータを fetch し、変更があれば DB を更新する。
+   * リモートからデータを取得し、変更があれば DB を更新する。
    *
    * 処理フロー:
-   *   1. DataSource.current.fetch() でデータ取得
-   *   2. DB に保存済みの etag と比較
-   *   3. 変更あり → DB.saveQuestions()（SR は保持）、etag 更新
-   *   4. 変更なし → スキップ
+   *   1. fetch で Excel を取得
+   *   2. 保存済み etag と比較 → 同一なら 'no-change'
+   *   3. 異なれば DB.saveQuestions()（SR は保持）
+   *
+   * ※ navigator.onLine はスマホで誤判定があるため「オフライン確定」
+   *    の判定には使わず、fetch の失敗だけを判断基準にする。
    *
    * @returns {Promise<{
    *   status: 'updated'|'no-change'|'offline'|'error',
    *   message: string,
+   *   detail?: string,    ← デバッグ用エラー詳細
    *   subjects?: number,
    *   total?: number,
    * }>}
    */
   async function syncFromRemote() {
-    if (!navigator.onLine) {
-      return { status: 'offline', message: 'オフラインです。保存済みデータを使用します。' };
+    let fetchResult;
+    try {
+      fetchResult = await DataSource.current.fetch();
+    } catch (err) {
+      // fetch 失敗 = ネット未接続 or URL誤り or サーバーエラー
+      const isOffline = !navigator.onLine
+                     || err.message.includes('Failed to fetch')
+                     || err.message.includes('NetworkError')
+                     || err.message.includes('network');
+      return {
+        status:  isOffline ? 'offline' : 'error',
+        message: isOffline
+          ? 'オフラインです。保存済みデータを使用します。'
+          : '最新データを取得できませんでした。保存済みデータを使用します。',
+        detail: err.message,
+      };
     }
 
+    // バリデーション
+    const v = validate(fetchResult.data);
+    if (!v.ok) {
+      return { status: 'error', message: v.msg, detail: 'validate failed' };
+    }
+
+    // 変更チェック（etag が同じなら更新不要）
+    const savedEtag = await DB.getMeta('dataEtag');
+    if (savedEtag && savedEtag === fetchResult.etag) {
+      return { status: 'no-change', message: '問題データは最新です。' };
+    }
+
+    // DB 更新（SR データは saveQuestions が保持する）
     try {
-      const { data, etag } = await DataSource.current.fetch();
-
-      // バリデーション
-      const v = validate(data);
-      if (!v.ok) return { status: 'error', message: v.msg };
-
-      // 変更チェック
-      const savedEtag = await DB.getMeta('dataEtag');
-      if (savedEtag && savedEtag === etag) {
-        return { status: 'no-change', message: '問題データは最新です。' };
-      }
-
-      // DB 更新（SR は保持）
-      await DB.saveQuestions(data);
-      await DB.setMeta('dataEtag',    etag);
+      await DB.saveQuestions(fetchResult.data);
+      await DB.setMeta('dataEtag',    fetchResult.etag);
       await DB.setMeta('lastUpdated', new Date().toISOString());
       await DB.setMeta('dataVersion', ((await DB.getMeta('dataVersion')) || 0) + 1);
-
-      return { status: 'updated', message: '問題データを更新しました。', ...v };
-
     } catch (err) {
-      return { status: 'error', message: `最新データを取得できませんでした。保存済みデータを使用します。` };
+      return { status: 'error', message: 'データの保存に失敗しました。', detail: err.message };
     }
+
+    return {
+      status:   'updated',
+      message:  '問題データを更新しました。',
+      subjects: v.subjects,
+      total:    v.total,
+    };
   }
 
   /** バリデーション */

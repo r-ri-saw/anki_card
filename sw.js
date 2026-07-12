@@ -4,13 +4,14 @@
  * キャッシュ戦略:
  *   アプリシェル（HTML/CSS/JS）: Cache First
  *   CDN ライブラリ:              Network First → Cache フォールバック
- *   暗記カード.xlsx:             Network First → Cache フォールバック
- *                                （app.js の fetch とは別にSWでもキャッシュ）
+ *   cards.xlsx / cards.json:     Network First → Cache フォールバック
+ *
+ * ※ CACHE_SHELL のバージョン番号を上げると古いキャッシュが自動削除される
  */
 
-const CACHE_SHELL   = 'anki-shell-v2';
-const CACHE_CDN     = 'anki-cdn-v1';
-const CACHE_DATA    = 'anki-data-v1';
+const CACHE_SHELL = 'anki-shell-v3';   // ← アプリ更新時はここを変更
+const CACHE_CDN   = 'anki-cdn-v1';
+const CACHE_DATA  = 'anki-data-v1';
 
 const SHELL_FILES = [
   './',
@@ -34,9 +35,13 @@ const CDN_URLS = [
 // ── インストール ──────────────────────────────────────────
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE_SHELL).then(cache =>
-      Promise.allSettled(SHELL_FILES.map(url => cache.add(url).catch(() => {})))
-    ).then(() => self.skipWaiting())
+    caches.open(CACHE_SHELL)
+      .then(cache => Promise.allSettled(
+        SHELL_FILES.map(url => cache.add(url).catch(err => {
+          console.warn('[SW] cache.add failed:', url, err);
+        }))
+      ))
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -45,8 +50,12 @@ self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
       .then(keys => Promise.all(
-        keys.filter(k => k !== CACHE_SHELL && k !== CACHE_CDN && k !== CACHE_DATA)
-            .map(k => caches.delete(k))
+        keys
+          .filter(k => k !== CACHE_SHELL && k !== CACHE_CDN && k !== CACHE_DATA)
+          .map(k => {
+            console.log('[SW] delete old cache:', k);
+            return caches.delete(k);
+          })
       ))
       .then(() => self.clients.claim())
   );
@@ -58,13 +67,13 @@ self.addEventListener('fetch', e => {
   if (!url.startsWith('http')) return;
 
   // CDN → Network First
-  if (CDN_URLS.some(u => url.includes('xlsx.full.min.js'))) {
+  if (url.includes('xlsx.full.min.js')) {
     e.respondWith(networkFirst(e.request, CACHE_CDN));
     return;
   }
 
-  // 問題データ（xlsx）→ Network First（SW層でもキャッシュ）
-  if (url.includes('暗記カード.xlsx') || url.includes('cards.json')) {
+  // 問題データファイル → Network First（SW でもキャッシュ）
+  if (url.includes('cards.xlsx') || url.includes('cards.json')) {
     e.respondWith(networkFirst(e.request, CACHE_DATA));
     return;
   }
@@ -82,8 +91,7 @@ async function cacheFirst(req, cacheName) {
     if (res.ok) (await caches.open(cacheName)).put(req, res.clone());
     return res;
   } catch {
-    return new Response('オフラインです', { status: 503,
-      headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+    return offline();
   }
 }
 
@@ -94,7 +102,13 @@ async function networkFirst(req, cacheName) {
     return res;
   } catch {
     const cached = await caches.match(req);
-    return cached || new Response('オフラインです', { status: 503,
-      headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+    return cached || offline();
   }
+}
+
+function offline() {
+  return new Response('オフラインです', {
+    status: 503,
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+  });
 }

@@ -20,11 +20,12 @@
      データなし画面（初回 or 取得失敗）
      ====================================================== -->
 <div id="screen-nodata" class="screen active">
-  <div class="page-scroll" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;text-align:center">
+  <div class="page-scroll" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;text-align:center;padding:32px 20px">
     <div style="font-size:64px">📭</div>
     <div style="font-size:20px;font-weight:800">問題データがありません</div>
-    <div id="nodata-message" style="font-size:14px;color:var(--text-sub);line-height:1.7;white-space:pre-line"></div>
-    <button class="btn btn-primary btn-lg" id="btn-retry">🔄 再試行</button>
+    <div id="nodata-message" style="font-size:14px;color:var(--text-sub);line-height:1.8;white-space:pre-line"></div>
+    <button class="btn btn-primary btn-lg" id="btn-retry" style="min-width:180px">🔄 再試行</button>
+    <div id="nodata-detail" style="font-size:11px;color:#bbb;word-break:break-all;max-width:340px"></div>
   </div>
 </div>
 
@@ -240,7 +241,7 @@
 </div>
 
 <!-- ======================================================
-     スクリプト
+     スクリプト（依存順）
      ====================================================== -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="js/db.js"></script>
