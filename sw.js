@@ -9,7 +9,7 @@
  * ※ CACHE_SHELL のバージョン番号を上げると古いキャッシュが自動削除される
  */
 
-const CACHE_SHELL = 'anki-shell-v3';   // ← アプリ更新時はここを変更
+const CACHE_SHELL = 'anki-shell-v5';   // ← アプリ更新時はここを変更
 const CACHE_CDN   = 'anki-cdn-v1';
 const CACHE_DATA  = 'anki-data-v1';
 
@@ -26,6 +26,12 @@ const SHELL_FILES = [
   './js/app.js',
   './images/icon-192.png',
   './images/icon-512.png',
+  './icons/icon-16.png',
+  './icons/icon-32.png',
+  './icons/icon-180.png',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/icon-512-maskable.png',
 ];
 
 const CDN_URLS = [

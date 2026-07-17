@@ -58,8 +58,9 @@ const Session = (() => {
         return { ok: false, message: '苦手問題がありません。まず「全問題」で学習しましょう。' };
 
     } else {
-      // all / random
-      queue = shuffle([...cards]);
+      // random: シャッフルして最大20問
+      const RANDOM_LIMIT = 20;
+      queue = shuffle([...cards]).slice(0, RANDOM_LIMIT);
     }
 
     _queue   = queue;

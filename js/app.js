@@ -186,7 +186,7 @@ async function updateData() {
 async function openSubject(subj) {
   _currentSubj = subj;
   _srMap       = await DB.getAllSR(subj);
-  _activeUnits = new Set(getUnits());
+  _activeUnits = new Set();  // デフォルトは選択なし
 
   UI.setAccent(subj);
 

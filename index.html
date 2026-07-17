@@ -3,15 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#4f8ef7">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="暗記カード">
-  <meta name="description" content="中学生向けスペースドリピティション暗記カードアプリ">
-  <title>暗記カード</title>
+  <meta name="description" content="中学1年生向けスペースドリピティション暗記カードアプリ（理科・社会）">
+  <title>中１暗記カード</title>
+
+  <!-- PWA manifest -->
   <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="images/icon-192.png">
-  <link rel="icon" type="image/png" sizes="192x192" href="images/icon-192.png">
+
+  <!-- favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16.png">
+
+  <!-- Apple（iOS / iPadOS）ホーム画面追加 -->
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="中１暗記">
+
+  <!-- Android / PWA テーマカラー -->
+  <meta name="theme-color" content="#1e50b4">
+  <meta name="mobile-web-app-capable" content="yes">
+
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -93,11 +104,6 @@
         <span>今日の復習</span>
         <span class="mode-sub">期限が来たカード</span>
       </button>
-      <button class="mode-btn all" onclick="startStudy('all')">
-        <span class="mode-icon">📋</span>
-        <span>全問題</span>
-        <span class="mode-sub">ランダム出題</span>
-      </button>
       <button class="mode-btn weak" onclick="startStudy('weak')">
         <span class="mode-icon">💪</span>
         <span>苦手問題</span>
@@ -106,7 +112,7 @@
       <button class="mode-btn random" onclick="startStudy('random')">
         <span class="mode-icon">🎲</span>
         <span>ランダム</span>
-        <span class="mode-sub">フィルタ対象から</span>
+        <span class="mode-sub">フィルタ対象から20問</span>
       </button>
     </div>
 

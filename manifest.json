@@ -1,27 +1,47 @@
 {
-  "name": "暗記カード",
-  "short_name": "暗記カード",
-  "description": "スペースドリピティション対応の暗記カードアプリ",
+  "name": "中１暗記カード",
+  "short_name": "中１暗記",
+  "description": "中学1年生向けスペースドリピティション暗記カードアプリ（理科・社会）",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
-  "theme_color": "#4f8ef7",
-  "background_color": "#f0f4ff",
+  "theme_color": "#1e50b4",
+  "background_color": "#1e50b4",
   "lang": "ja",
   "icons": [
     {
-      "src": "images/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "src": "icons/icon-16.png",
+      "sizes": "16x16",
+      "type": "image/png"
     },
     {
-      "src": "images/icon-512.png",
+      "src": "icons/icon-32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
-  "categories": ["education", "utilities"],
-  "screenshots": []
+  "categories": ["education", "utilities"]
 }
